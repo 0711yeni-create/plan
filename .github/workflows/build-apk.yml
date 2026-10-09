@@ -8,9 +8,10 @@ on:
       - main
     paths:
       - 'app/**'
+      - 'gradle/**'
+      - 'gradlew'
       - '*.gradle.kts'
       - 'gradle.properties'
-      - 'settings.gradle.kts'
       - '.github/workflows/build-apk.yml'
 
 permissions:
@@ -30,23 +31,27 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Grant Gradle permission
-        run: chmod +x gradlew
-        if: ${{ hashFiles('gradlew') != '' }}
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses
 
-      - name: Build debug APK
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Check Gradle Wrapper
         run: |
-          if [ -f ./gradlew ]; then
-            ./gradlew assembleDebug
-          else
-            echo "ERROR: gradlew is missing from the repository."
-            echo "Add the Gradle Wrapper files and run the workflow again."
+          if [ ! -f gradlew ]; then
+            echo "::error::gradlew is missing. Add the Gradle Wrapper files to the repository."
             exit 1
           fi
+          chmod +x gradlew
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
